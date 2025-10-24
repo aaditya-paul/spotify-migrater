@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { spotifyApi } from "@/lib/spotify";
-import { cookies } from "next/headers";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -8,14 +7,17 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
+  // Use the configured redirect URI to determine the base URL
+  const baseUrl =
+    process.env.NEXT_PUBLIC_REDIRECT_URI?.replace("/api/callback", "") ||
+    request.nextUrl.origin;
+
   if (error) {
-    return NextResponse.redirect(`${request.nextUrl.origin}/?error=${error}`);
+    return NextResponse.redirect(`${baseUrl}/?error=${error}`);
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(
-      `${request.nextUrl.origin}/?error=missing_params`
-    );
+    return NextResponse.redirect(`${baseUrl}/?error=missing_params`);
   }
 
   try {
@@ -23,9 +25,7 @@ export async function GET(request: NextRequest) {
     const accountType = state.split("_")[0];
 
     if (!["source", "target"].includes(accountType)) {
-      return NextResponse.redirect(
-        `${request.nextUrl.origin}/?error=invalid_state`
-      );
+      return NextResponse.redirect(`${baseUrl}/?error=invalid_state`);
     }
 
     // Exchange code for tokens
@@ -36,37 +36,42 @@ export async function GET(request: NextRequest) {
     // Calculate expiration time
     const expiresAt = Date.now() + expires_in * 1000;
 
-    // Store tokens in cookies (in production, use secure session storage)
-    const cookieStore = await cookies();
-    cookieStore.set(`${accountType}_access_token`, access_token, {
+    // Create redirect response
+    const response = NextResponse.redirect(
+      `${baseUrl}/?account=${accountType}&status=connected`
+    );
+
+    // Set cookies on the response
+    response.cookies.set(`${accountType}_access_token`, access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: expires_in,
+      path: "/",
     });
 
-    cookieStore.set(`${accountType}_refresh_token`, refresh_token, {
+    response.cookies.set(`${accountType}_refresh_token`, refresh_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: "/",
     });
 
-    cookieStore.set(`${accountType}_expires_at`, expiresAt.toString(), {
+    response.cookies.set(`${accountType}_expires_at`, expiresAt.toString(), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: expires_in,
+      path: "/",
     });
 
-    // Redirect back to home with success
-    return NextResponse.redirect(
-      `${request.nextUrl.origin}/?account=${accountType}&status=connected`
-    );
+    return response;
   } catch (error) {
     console.error("Error getting tokens:", error);
-    return NextResponse.redirect(
-      `${request.nextUrl.origin}/?error=auth_failed`
-    );
+    const baseUrl =
+      process.env.NEXT_PUBLIC_REDIRECT_URI?.replace("/api/callback", "") ||
+      request.nextUrl.origin;
+    return NextResponse.redirect(`${baseUrl}/?error=auth_failed`);
   }
 }

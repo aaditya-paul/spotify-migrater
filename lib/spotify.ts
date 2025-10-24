@@ -7,6 +7,8 @@ export const spotifyApi = new SpotifyWebApi({
 });
 
 export const scopes = [
+  "user-read-private",
+  "user-read-email",
   "user-library-read",
   "user-library-modify",
   "playlist-read-private",
@@ -17,6 +19,7 @@ export const scopes = [
   "user-follow-modify",
 ];
 
-export function getAuthUrl(state: string) {
-  return spotifyApi.createAuthorizeURL(scopes, state);
+export function getAuthUrl(state: string, showDialog = false) {
+  const url = spotifyApi.createAuthorizeURL(scopes, state, showDialog);
+  return url;
 }

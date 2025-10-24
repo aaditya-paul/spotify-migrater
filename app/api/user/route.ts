@@ -13,15 +13,21 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  let accessToken: string | undefined;
+
   try {
     const cookieStore = await cookies();
-    const accessToken = cookieStore.get(`${account}_access_token`)?.value;
+    accessToken = cookieStore.get(`${account}_access_token`)?.value;
 
     if (!accessToken) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const spotify = new SpotifyWebApi();
+    const spotify = new SpotifyWebApi({
+      clientId: process.env.SPOTIFY_CLIENT_ID,
+      clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+      redirectUri: process.env.NEXT_PUBLIC_REDIRECT_URI,
+    });
     spotify.setAccessToken(accessToken);
 
     const userData = await spotify.getMe();
@@ -32,10 +38,25 @@ export async function GET(request: NextRequest) {
       email: userData.body.email,
       images: userData.body.images,
     });
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as { body?: any; statusCode?: number; message?: string };
     console.error("Error fetching user:", error);
+    console.error("Error body:", err.body);
+    console.error("Error statusCode:", err.statusCode);
+    console.error(
+      "Access token (first 20 chars):",
+      accessToken?.substring(0, 20)
+    );
+
+    const errorMessage = err.message || "Unknown error";
+    const errorDetails = err.body ? JSON.stringify(err.body) : errorMessage;
+
     return NextResponse.json(
-      { error: "Failed to fetch user data" },
+      {
+        error: "Failed to fetch user data",
+        details: errorDetails,
+        statusCode: err.statusCode,
+      },
       { status: 500 }
     );
   }

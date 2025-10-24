@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   }
 
   const state = `${account}_${Date.now()}`;
-  const authUrl = getAuthUrl(state);
+  const authUrl = getAuthUrl(state, true); // Force showing the dialog
 
   return NextResponse.redirect(authUrl);
 }
