@@ -21,8 +21,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Extract account type from state
-    const accountType = state.split("_")[0];
+    // Extract account type and mode from state (format: account_mode_timestamp)
+    const stateParts = state.split("_");
+    const accountType = stateParts[0];
+    const mode = stateParts[1] !== "none" ? stateParts[1] : null;
 
     if (!["source", "target"].includes(accountType)) {
       return NextResponse.redirect(`${baseUrl}/?error=invalid_state`);
@@ -36,10 +38,20 @@ export async function GET(request: NextRequest) {
     // Calculate expiration time
     const expiresAt = Date.now() + expires_in * 1000;
 
+    // Build redirect URL with mode and step
+    let redirectUrl = `${baseUrl}/?account=${accountType}&status=connected`;
+    if (mode) {
+      redirectUrl += `&mode=${mode}`;
+      // Determine the appropriate step based on account type and mode
+      if (accountType === "source") {
+        redirectUrl += `&step=fetch-data`;
+      } else if (accountType === "target") {
+        redirectUrl += `&step=migrate`;
+      }
+    }
+
     // Create redirect response
-    const response = NextResponse.redirect(
-      `${baseUrl}/?account=${accountType}&status=connected`
-    );
+    const response = NextResponse.redirect(redirectUrl);
 
     // Set cookies on the response
     response.cookies.set(`${accountType}_access_token`, access_token, {
