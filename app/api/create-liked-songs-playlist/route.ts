@@ -89,12 +89,12 @@ export async function POST() {
         data.body.items.forEach((item) => {
           if (item.track?.id) likedTrackIds.push(item.track.id);
         });
-        
+
         await sendEvent({
           stage: "Fetching liked songs...",
           count: likedTrackIds.length,
         });
-        
+
         if (data.body.items.length < 50) break;
         offset += 50;
         await new Promise((resolve) => setTimeout(resolve, 100));

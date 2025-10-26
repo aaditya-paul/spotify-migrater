@@ -112,7 +112,10 @@ export async function POST(request: Request) {
         await sendEvent({ stage: "Fetching playlists...", count: 0 });
         playlists = await fetchAllPlaylists(spotify, sendEvent);
         console.log(`✓ Fetched ${playlists.length} playlists`);
-        await sendEvent({ stage: "Playlists fetched", count: playlists.length });
+        await sendEvent({
+          stage: "Playlists fetched",
+          count: playlists.length,
+        });
 
         console.log("Fetching saved albums...");
         await sendEvent({ stage: "Fetching albums...", count: 0 });
