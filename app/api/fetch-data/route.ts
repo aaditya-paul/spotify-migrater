@@ -34,7 +34,7 @@ async function retryWithBackoff<T>(
   throw new Error("Max retries exceeded");
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   console.log("=== FETCH DATA STARTED ===");
 
   // Create a TransformStream for Server-Sent Events
@@ -53,6 +53,18 @@ export async function POST() {
   // Start the async process
   (async () => {
     try {
+      // Get mode from request body
+      let mode: string | null = null;
+      try {
+        const body = await request.json();
+        mode = body.mode || null;
+      } catch {
+        // If no body, mode will be null (fetch everything)
+      }
+
+      console.log("Mode:", mode);
+      const isLikedSongsOnly = mode === "liked-songs-playlist";
+
       const cookieStore = await cookies();
       const accessToken = cookieStore.get("source_access_token")?.value;
 
@@ -85,26 +97,38 @@ export async function POST() {
         count: savedTracks.length,
       });
 
-      console.log("Fetching playlists...");
-      await sendEvent({ stage: "Fetching playlists...", count: 0 });
-      const playlists = await fetchAllPlaylists(spotify, sendEvent);
-      console.log(`✓ Fetched ${playlists.length} playlists`);
-      await sendEvent({ stage: "Playlists fetched", count: playlists.length });
+      let playlists: Array<{
+        name: string;
+        description: string;
+        tracks: string[];
+        isPublic: boolean;
+      }> = [];
+      let savedAlbums: string[] = [];
+      let followedArtists: string[] = [];
 
-      console.log("Fetching saved albums...");
-      await sendEvent({ stage: "Fetching albums...", count: 0 });
-      const savedAlbums = await fetchAllSavedAlbums(spotify);
-      console.log(`✓ Fetched ${savedAlbums.length} saved albums`);
-      await sendEvent({ stage: "Albums fetched", count: savedAlbums.length });
+      // Only fetch playlists, albums, and artists if NOT in liked-songs-only mode
+      if (!isLikedSongsOnly) {
+        console.log("Fetching playlists...");
+        await sendEvent({ stage: "Fetching playlists...", count: 0 });
+        playlists = await fetchAllPlaylists(spotify, sendEvent);
+        console.log(`✓ Fetched ${playlists.length} playlists`);
+        await sendEvent({ stage: "Playlists fetched", count: playlists.length });
 
-      console.log("Fetching followed artists...");
-      await sendEvent({ stage: "Fetching artists...", count: 0 });
-      const followedArtists = await fetchAllFollowedArtists(spotify);
-      console.log(`✓ Fetched ${followedArtists.length} followed artists`);
-      await sendEvent({
-        stage: "Artists fetched",
-        count: followedArtists.length,
-      });
+        console.log("Fetching saved albums...");
+        await sendEvent({ stage: "Fetching albums...", count: 0 });
+        savedAlbums = await fetchAllSavedAlbums(spotify);
+        console.log(`✓ Fetched ${savedAlbums.length} saved albums`);
+        await sendEvent({ stage: "Albums fetched", count: savedAlbums.length });
+
+        console.log("Fetching followed artists...");
+        await sendEvent({ stage: "Fetching artists...", count: 0 });
+        followedArtists = await fetchAllFollowedArtists(spotify);
+        console.log(`✓ Fetched ${followedArtists.length} followed artists`);
+        await sendEvent({
+          stage: "Artists fetched",
+          count: followedArtists.length,
+        });
+      }
 
       // Store in cookies (or you could use a database)
       const migrationData = {

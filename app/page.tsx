@@ -16,7 +16,7 @@ interface MigrationResult {
   artists: number;
 }
 
-type Mode = "full-migration" | "mega-playlist";
+type Mode = "full-migration" | "mega-playlist" | "liked-songs-playlist";
 
 interface FetchProgress {
   stage: string;
@@ -130,7 +130,11 @@ export default function Home() {
     setFetchProgress({ stage: "Starting...", count: 0 });
 
     try {
-      const response = await fetch("/api/fetch-data", { method: "POST" });
+      const response = await fetch("/api/fetch-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode }),
+      });
 
       if (!response.ok || !response.body) {
         setError("Failed to fetch data");
@@ -181,7 +185,7 @@ export default function Home() {
         setFetchProgress(null);
 
         setTimeout(() => {
-          if (mode === "mega-playlist") {
+          if (mode === "mega-playlist" || mode === "liked-songs-playlist") {
             navigateTo("create-playlist");
           } else {
             navigateTo("connect-target");
@@ -257,7 +261,13 @@ export default function Home() {
     setFetchProgress({ stage: "Starting...", count: 0 });
 
     try {
-      const response = await fetch("/api/create-mega-playlist", {
+      // Use different API endpoint based on mode
+      const endpoint =
+        mode === "liked-songs-playlist"
+          ? "/api/create-liked-songs-playlist"
+          : "/api/create-mega-playlist";
+
+      const response = await fetch(endpoint, {
         method: "POST",
       });
 
@@ -478,6 +488,37 @@ export default function Home() {
                   <p className="text-sm text-white/50 font-light leading-relaxed">
                     Combine all songs from your liked songs, playlists, and
                     albums into one shareable playlist
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              onClick={() => selectMode("liked-songs-playlist")}
+              className="bg-white/[0.02] backdrop-blur-xl rounded-2xl p-6 border border-white/10 shadow-2xl cursor-pointer hover:bg-white/[0.04] hover:border-[#87ceeb]/30 transition-all duration-200 group"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#87ceeb]/20 to-[#6bb6d9]/20 border border-[#87ceeb]/20 flex items-center justify-center flex-shrink-0 group-hover:from-[#87ceeb]/30 group-hover:to-[#6bb6d9]/30 transition-all">
+                  <svg
+                    className="w-6 h-6 text-[#87ceeb]"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                    ></path>
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-medium text-white/90 mb-2">
+                    Liked Songs Playlist
+                  </h3>
+                  <p className="text-sm text-white/50 font-light leading-relaxed">
+                    Export all your liked songs into a single shareable playlist
                   </p>
                 </div>
               </div>
@@ -704,36 +745,40 @@ export default function Home() {
                   Liked Songs
                 </p>
               </div>
-              <div className="bg-white/[0.03] backdrop-blur-sm rounded-xl p-4 sm:p-5 text-center border border-white/5">
-                <p className="text-3xl sm:text-4xl font-light text-[#b4a0ff] mb-1">
-                  {fetchedData.playlists}
-                </p>
-                <p className="text-xs sm:text-sm text-white/40 font-light">
-                  Playlists
-                </p>
-              </div>
-              <div className="bg-white/[0.03] backdrop-blur-sm rounded-xl p-4 sm:p-5 text-center border border-white/5">
-                <p className="text-3xl sm:text-4xl font-light text-[#87ceeb] mb-1">
-                  {fetchedData.albums}
-                </p>
-                <p className="text-xs sm:text-sm text-white/40 font-light">
-                  Albums
-                </p>
-              </div>
-              <div className="bg-white/[0.03] backdrop-blur-sm rounded-xl p-4 sm:p-5 text-center border border-white/5">
-                <p className="text-3xl sm:text-4xl font-light text-[#ffb4c8] mb-1">
-                  {fetchedData.artists}
-                </p>
-                <p className="text-xs sm:text-sm text-white/40 font-light">
-                  Artists
-                </p>
-              </div>
+              {mode !== "liked-songs-playlist" && (
+                <>
+                  <div className="bg-white/[0.03] backdrop-blur-sm rounded-xl p-4 sm:p-5 text-center border border-white/5">
+                    <p className="text-3xl sm:text-4xl font-light text-[#b4a0ff] mb-1">
+                      {fetchedData.playlists}
+                    </p>
+                    <p className="text-xs sm:text-sm text-white/40 font-light">
+                      Playlists
+                    </p>
+                  </div>
+                  <div className="bg-white/[0.03] backdrop-blur-sm rounded-xl p-4 sm:p-5 text-center border border-white/5">
+                    <p className="text-3xl sm:text-4xl font-light text-[#87ceeb] mb-1">
+                      {fetchedData.albums}
+                    </p>
+                    <p className="text-xs sm:text-sm text-white/40 font-light">
+                      Albums
+                    </p>
+                  </div>
+                  <div className="bg-white/[0.03] backdrop-blur-sm rounded-xl p-4 sm:p-5 text-center border border-white/5">
+                    <p className="text-3xl sm:text-4xl font-light text-[#ffb4c8] mb-1">
+                      {fetchedData.artists}
+                    </p>
+                    <p className="text-xs sm:text-sm text-white/40 font-light">
+                      Artists
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             <p className="text-sm text-white/50 mb-5 font-light leading-relaxed">
-              Ready to create a mega playlist with all your music! This will
-              create a single playlist with all songs from your liked songs,
-              playlists, and albums.
+              {mode === "liked-songs-playlist"
+                ? "Ready to create a playlist with all your liked songs! This will create a single playlist with all your saved tracks."
+                : "Ready to create a mega playlist with all your music! This will create a single playlist with all songs from your liked songs, playlists, and albums."}
             </p>
 
             {fetchProgress && (
@@ -798,6 +843,8 @@ export default function Home() {
                   </svg>
                   Creating playlist...
                 </span>
+              ) : mode === "liked-songs-playlist" ? (
+                "Create Liked Songs Playlist"
               ) : (
                 "Create Mega Playlist"
               )}
@@ -891,11 +938,17 @@ export default function Home() {
                 </svg>
               </div>
               <h2 className="text-2xl sm:text-3xl font-light text-white/95 mb-2">
-                {playlistUrl ? "Playlist Created!" : "Migration Complete"}
+                {playlistUrl
+                  ? mode === "liked-songs-playlist"
+                    ? "Liked Songs Exported!"
+                    : "Playlist Created!"
+                  : "Migration Complete"}
               </h2>
               <p className="text-sm text-white/50 font-light">
                 {playlistUrl
-                  ? "Your mega playlist is ready to share"
+                  ? mode === "liked-songs-playlist"
+                    ? "Your liked songs playlist is ready to share"
+                    : "Your mega playlist is ready to share"
                   : "Your library has been successfully transferred"}
               </p>
             </div>
